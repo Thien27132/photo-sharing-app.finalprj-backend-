@@ -46,7 +46,7 @@ app.use("/images", express.static(path.join(__dirname, "images")));
 
 // Route mặc định tại trang gốc để test nhanh trạng thái hoạt động của Server
 app.get("/", (req, res) => {
-  res.send("🚀 Backend Server đang chạy bình thường trên CodeSandbox!");
+  res.send(" Backend Server đang chạy bình thường trên CodeSandbox!");
 });
 
 // ====================================================================
