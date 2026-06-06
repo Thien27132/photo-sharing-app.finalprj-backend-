@@ -18,7 +18,7 @@ dbConnect();
 // 3. Cấu hình các Middleware tổng cục
 app.use(
   cors({
-    origin: true, // Cho phép tự động nhận diện URL của Frontend (không cần hardcode localhost:3000 nữa)
+    origin: "https://fh5ntw-3000.csb.app", // CHỐT HẠ LỖI CORS: Cấp quyền đích danh cho URL Frontend của bạn
     credentials: true, // Cho phép gửi cookie session cross-origin
   })
 );
@@ -46,7 +46,7 @@ app.use("/images", express.static(path.join(__dirname, "images")));
 
 // Route mặc định tại trang gốc để test nhanh trạng thái hoạt động của Server
 app.get("/", (req, res) => {
-  res.send(" Backend Server đang chạy bình thường trên CodeSandbox!");
+  res.send("Backend Server đang chạy bình thường trên CodeSandbox!");
 });
 
 // ====================================================================
