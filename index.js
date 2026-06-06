@@ -8,35 +8,45 @@ require("dotenv").config(); // Khởi tạo biến môi trường từ .env
 const app = express();
 const PORT = process.env.PORT || 8081;
 
+// BẮT BUỘC TRÊN CODESANDBOX: Bật trust proxy để Express cho phép gửi Cookie qua giao thức HTTPS của CodeSandbox
+app.set("trust proxy", 1);
+
 // 2. Kích hoạt kết nối Cơ sở dữ liệu MongoDB thông qua dbConnect
 const dbConnect = require("./db/dbConnect");
 dbConnect();
 
 // 3. Cấu hình các Middleware tổng cục
-app.use(cors({
-  origin: "http://localhost:3000",  // Frontend origin
-  credentials: true,               // Cho phép gửi cookie session cross-origin
-}));
+app.use(
+  cors({
+    origin: true, // Cho phép tự động nhận diện URL của Frontend (không cần hardcode localhost:3000 nữa)
+    credentials: true, // Cho phép gửi cookie session cross-origin
+  })
+);
 app.use(express.json()); // Hỗ trợ parse dữ liệu dạng JSON từ Client gửi lên
 
 // 4. Cấu hình Express Session
-app.use(session({
-  secret: process.env.SESSION_SECRET || "photo-sharing-secret-key-2024",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000, // 24 giờ
-    httpOnly: true,
-  }
-}));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "photo-sharing-secret-key-2024",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // 24 giờ
+      httpOnly: true,
+      sameSite: "none", // BẮT BUỘC ĐỂ KHÔNG BỊ MẤT SESSION: Cho phép gửi cookie giữa 2 domain khác nhau
+      secure: true, // BẮT BUỘC: Yêu cầu HTTPS (CodeSandbox mặc định đã chạy HTTPS)
+    },
+  })
+);
 
 // 5. Phục vụ kho ảnh tĩnh (Dùng cho tính năng hiển thị ảnh của UserPhotos)
 // Toàn bộ ảnh nằm trong thư mục backend/images sẽ truy cập được qua: http://localhost:8081/images/tên_file.jpg
+// (Trên Sandbox sẽ là: https://link-backend.csb.app/images/tên_file.jpg)
 app.use("/images", express.static(path.join(__dirname, "images")));
 
 // Route mặc định tại trang gốc để test nhanh trạng thái hoạt động của Server
 app.get("/", (req, res) => {
-  res.send("🚀 Backend Server đang chạy bình thường!");
+  res.send("🚀 Backend Server đang chạy bình thường trên CodeSandbox!");
 });
 
 // ====================================================================
@@ -56,21 +66,25 @@ app.post("/admin/login", async (req, res) => {
   const { login_name, password } = req.body;
 
   if (!login_name || !password) {
-    return res.status(400).json({ error: "login_name và password là bắt buộc" });
+    return res
+      .status(400)
+      .json({ error: "login_name và password là bắt buộc" });
   }
 
   try {
-    const user = await User.findOne({ login_name: login_name.toLowerCase().trim() });
+    const user = await User.findOne({
+      login_name: login_name.toLowerCase().trim(),
+    });
     if (!user) {
       return res.status(400).json({
-        error: "Tên đăng nhập không tồn tại"
+        error: "Tên đăng nhập không tồn tại",
       });
     }
 
     // So sánh mật khẩu plaintext
     if (password !== user.password) {
       return res.status(400).json({
-        error: "Mật khẩu không đúng"
+        error: "Mật khẩu không đúng",
       });
     }
 
@@ -108,6 +122,8 @@ app.post("/admin/logout", (req, res) => {
     if (err) {
       return res.status(500).json({ error: "Đăng xuất thất bại" });
     }
+    // Xóa cookie ở phía client
+    res.clearCookie("connect.sid");
     res.status(200).json({ message: "Đăng xuất thành công" });
   });
 });
@@ -136,8 +152,8 @@ app.use((req, res, next) => {
 const userRouter = require("./routes/UserRouter");
 const photoRouter = require("./routes/PhotoRouter");
 
-app.use("/user", userRouter);           // Các API như /user/list, /user/:id
-app.use("/photosOfUser", photoRouter);   // GET /photosOfUser/:id - Lấy ảnh của user
+app.use("/user", userRouter); // Các API như /user/list, /user/:id
+app.use("/photosOfUser", photoRouter); // GET /photosOfUser/:id - Lấy ảnh của user
 app.use("/commentsOfPhoto", photoRouter); // POST /commentsOfPhoto/:photo_id - Thêm bình luận
 
 // NOTE: Upload endpoint removed to simplify backend (no image uploads).
@@ -147,8 +163,8 @@ const Photo = require("./db/photoModel");
 // 9. Khởi chạy Server lắng nghe các request
 app.listen(PORT, () => {
   console.log("==================================================");
-  console.log(`🚀 Server đang chạy tại: http://localhost:${PORT}`);
-  console.log(`📂 Thư mục ảnh tĩnh: http://localhost:${PORT}/images/`);
-  console.log("🔐 Session: Đã bật xác thực phiên đăng nhập");
+  console.log(` Server đang chạy tại cổng: ${PORT}`);
+  console.log(" Session: Đã bật xác thực (Hỗ trợ Cross-Origin)");
+  console.log(" CORS: Đã mở kết nối cho Frontend");
   console.log("==================================================");
 });
